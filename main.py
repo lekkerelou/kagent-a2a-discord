@@ -1,6 +1,5 @@
 import os
 import logging
-import asyncio
 from dotenv import load_dotenv
 import discord
 from discord.ext import commands
@@ -11,7 +10,7 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 
 intents = discord.Intents.default()
-intents.message_content = True  # si tu veux lire les messages
+intents.message_content = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
@@ -19,7 +18,6 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 async def on_ready():
     logging.info(f"✅ Bot logged in as {bot.user} (ID: {bot.user.id})")
 
-# Enregistre tes handlers custom (slash commands, etc.)
 register_handlers(bot)
 
 def main():
