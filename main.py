@@ -18,8 +18,6 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 @bot.event
 async def on_ready():
     logging.info(f"✅ Bot logged in as {bot.user} (ID: {bot.user.id})")
-    await bot.tree.sync()
-    logging.info("✅ Slash commands synced.")
 
 # Enregistre tes handlers custom (slash commands, etc.)
 register_handlers(bot)
