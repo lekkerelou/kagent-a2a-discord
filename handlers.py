@@ -71,7 +71,7 @@ def register_handlers(bot: commands.Bot):
         channel_id = str(message.channel.id)
 
         # If MENTION_ONLY is enabled, ignore messages that don't mention the bot
-        if mention_only and not message.mentions:
+        if mention_only and message.guild and message.guild.me not in message.mentions:
             return
 
         # If CHANNEL_ONLY is set, ignore messages in channels not listed
