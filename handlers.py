@@ -51,8 +51,8 @@ async def invoke_a2a_agent(agent_url: str, input: str, channel_id: str):
         
         # Get existing context for this channel, if any
         existing_context_id = channel_contexts.get(channel_id)
-        logger.info(f"Channel {channel_id} existing context: {existing_context_id}")
-        logger.info(f"All stored contexts: {channel_contexts}")
+        if existing_context_id:
+            logger.info(f"Using existing context for channel {channel_id}")
         
         # Create the message using official SDK types
         text_part = TextPart(text=input)
@@ -72,12 +72,10 @@ async def invoke_a2a_agent(agent_url: str, input: str, channel_id: str):
             params=params
         )
         
-        logger.info(f"Invoking agent for channel {channel_id} with context: {existing_context_id}")
-        
         # Send the message
         response = await a2a_client.send_message(request)
         
-        logger.info(f"Received response from agent")
+        logger.info(f"Received response from agent for channel {channel_id}")
         
         # Extract text from response
         # response.root is the SendMessageSuccessResponse directly
@@ -91,28 +89,17 @@ async def invoke_a2a_agent(agent_url: str, input: str, channel_id: str):
             result = response.root.result
             
             # Extract and store contextId for session continuity
-            logger.info(f"Result type: {type(result)}")
-            logger.info(f"Result attributes: {[attr for attr in dir(result) if not attr.startswith('_')]}")
-            
-            # Try to access contextId directly (Task uses context_id in Python, contextId in JSON)
-            try:
-                context_id = getattr(result, 'context_id', None)  # Use snake_case for Python attribute
-                logger.info(f"Result contextId via getattr (context_id): {context_id}")
-            except Exception as e:
-                logger.error(f"Error accessing context_id: {e}")
-                context_id = None
+            context_id = getattr(result, 'context_id', None)  # Task uses context_id in Python
             
             if context_id:
-                logger.info(f"Storing contextId {context_id} for channel {channel_id}")
+                logger.info(f"Storing context for channel {channel_id}")
                 channel_contexts[channel_id] = context_id
-                logger.info(f"Updated contexts: {channel_contexts}")
             elif hasattr(result, 'id') and result.id:
                 # Fallback: use task/message ID if no contextId
-                logger.info(f"Using task/message ID {result.id} as context for channel {channel_id}")
+                logger.info(f"Using task ID as context for channel {channel_id}")
                 channel_contexts[channel_id] = result.id
-                logger.info(f"Updated contexts: {channel_contexts}")
             else:
-                logger.warning(f"No contextId or id found in result to store for session continuity")
+                logger.warning(f"No contextId found in result for session continuity")
             
             # Check if it's a task with artifacts
             if hasattr(result, 'artifacts') and result.artifacts:
@@ -125,9 +112,7 @@ async def invoke_a2a_agent(agent_url: str, input: str, channel_id: str):
                             if hasattr(actual_part, 'text'):
                                 extracted_texts.append(actual_part.text)
                 
-                final_text = "".join(extracted_texts)
-                logger.info(f"Extracted {len(extracted_texts)} text parts from {len(result.artifacts)} artifacts")
-                return final_text
+                return "".join(extracted_texts)
             
             # Check if it's a direct message response
             elif hasattr(result, 'parts') and result.parts:
@@ -139,7 +124,7 @@ async def invoke_a2a_agent(agent_url: str, input: str, channel_id: str):
             
             # Fallback to string representation
             else:
-                logger.warning(f"Unexpected result format: {type(result)}")
+                logger.warning(f"Unexpected result format")
                 return str(result)
         else:
             logger.warning("No result found in response")
@@ -178,14 +163,14 @@ def register_handlers(bot: commands.Bot):
         if allowed_channels and channel_id not in allowed_channels:
             return
 
-        logger.info(f"Received a message from user {user_id} in channel {channel_id}: {content}")
+        logger.info(f"Processing message in channel {channel_id}")
 
         # Check for session reset command
         if content.lower() in ['!reset', '!clear', '!new']:
             if channel_id in channel_contexts:
                 del channel_contexts[channel_id]
                 await message.reply("🔄 Session context cleared. Starting fresh conversation.")
-                logger.info(f"Cleared context for channel {channel_id}")
+                logger.info(f"Session reset for channel {channel_id}")
             else:
                 await message.reply("ℹ️ No active session to clear.")
             return
